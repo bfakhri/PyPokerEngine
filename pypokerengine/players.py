@@ -1,3 +1,5 @@
+import time
+
 class BasePokerPlayer(object):
   """Base Poker client implementation
 
@@ -13,6 +15,9 @@ class BasePokerPlayer(object):
   """
 
   def __init__(self):
+    self.time_violation_count = 0
+    self.max_time_violations = 10
+    self.max_thinking_time = 0.100 # 100ms
     pass
 
   def declare_action(self, valid_actions, hole_card, round_state):
@@ -45,7 +50,19 @@ class BasePokerPlayer(object):
   def respond_to_ask(self, message):
     """Called from Dealer when ask message received from RoundManager"""
     valid_actions, hole_card, round_state = self.__parse_ask_message(message)
-    return self.declare_action(valid_actions, hole_card, round_state)
+    if(self.time_violation_count > self.max_time_violations):
+        print('Exceeded max time violations. Folding')
+        return valid_actions[0]['action'], valid_actions[0]['amount']
+
+    start_time = time.time()
+    declared_action = self.declare_action(valid_actions, hole_card, round_state)
+    end_time = time.time()
+
+    if(end_time - start_time > self.max_thinking_time):
+        self.time_violation_count += 1
+        print('Exceeded max thinking time. Violation count = {0}. Folding'.format(self.time_violation_count))
+        return valid_actions[0]['action'], valid_actions[0]['amount']
+    return declared_action
 
   def receive_notification(self, message):
     """Called from Dealer when notification received from RoundManager"""
